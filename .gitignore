@@ -45,6 +45,7 @@ Build/
 build-*/
 cmake-build-*/
 out/
+target/
 
 # CMake generated files
 CMakeFiles/

@@ -1,6 +1,6 @@
-# rootcall
+# doubleComma
 
-`rootcall` is a small project-aware command dispatcher. Run `,,` from any
+`doubleComma` is a small project-aware command dispatcher. Run `,,` from any
 subdirectory and it walks upward to find the nearest supported project root,
 detects the project type, and dispatches common commands through the right tool.
 
@@ -12,16 +12,14 @@ This MVP supports:
 ## Build
 
 ```sh
-mkdir -p build
-cmake -S . -B build
-cmake --build build
+cargo build --release
 ```
 
 ## Install
 
 ```sh
 mkdir -p ~/.local/bin
-cp ./build/,, ~/.local/bin/,,
+cp ./target/release/doubleComma ~/.local/bin/,,
 ```
 
 Make sure `~/.local/bin` is on your `PATH`.
@@ -38,16 +36,21 @@ Python projects are detected by `uv.toml` or `pyproject.toml`.
 ,, test
 ,, fmt
 ,, lint
-,, run python -m my_package
+,, cli --help
+,, pytest -q
+,, ./scripts/task.py
 ```
 
 Command mapping:
 
 - `,, prepare` -> `uv sync`
+- `,, <script>` -> `uv run <script>` when `<script>` is defined in `[project.scripts]`
 - `,, test` -> `uv run pytest`
 - `,, fmt` -> `uv run ruff format .`
 - `,, lint` -> `uv run ruff check .`
-- `,, run <args...>` -> `uv run <args...>`
+- `,, <file>` -> `uv run <absolute-file-path>`
+- `,, <tool> [args...]` -> `uv run <tool> [args...]`
+- `,, run <args...>` -> `uv run <args...>` for compatibility
 
 `,, prepare` runs only when `.venv` is missing.
 
@@ -65,18 +68,24 @@ Node projects are detected by `package.json`.
 ,, build
 ,, fmt
 ,, lint
-,, run eslint .
+,, eslint .
+,, ./src/index.js
+,, ./src/main.ts
 ```
 
 Command mapping:
 
 - `,, prepare` -> `npm ci` when `package-lock.json` exists, otherwise `npm install`
+- `,, <script>` -> `npm run <script> -- [args...]` when `<script>` is defined in `package.json`
 - `,, test` -> `npm test`
 - `,, dev` -> `npm run dev`
 - `,, build` -> `npm run build`
 - `,, fmt` -> `npm run fmt`
 - `,, lint` -> `npm run lint`
-- `,, run <args...>` -> `npm exec -- <args...>`
+- `,, <file.js>` -> `node <absolute-file-path>`
+- `,, <file.ts>` -> `npm exec --no -- tsx <absolute-file-path>` when local `tsx` exists, otherwise local `ts-node`
+- `,, <tool> [args...]` -> `npm exec --no -- <tool> [args...]`
+- `,, run <args...>` -> `npm exec --no -- <args...>` for compatibility
 
 `,, prepare` runs only when `node_modules` is missing.
 
@@ -85,7 +94,5 @@ Command mapping:
 - No config files.
 - No plugin system.
 - No trust system.
-- No JSON or TOML parsing.
 - No multi-backend project support.
-- Uses `std::system` for execution.
-- Shell quoting is basic POSIX-style quoting.
+- `explain` command rendering uses basic POSIX-style quoting.
