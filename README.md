@@ -13,16 +13,23 @@ This MVP supports:
 
 ```sh
 cargo build --release
+nix build
 ```
+
+## Source layout
+
+- `src/lib.rs` contains project detection, manifest parsing, command planning, execution, and unit tests.
+- `src/main.rs` is only the CLI entrypoint.
 
 ## Install
 
 ```sh
-mkdir -p ~/.local/bin
-cp ./target/release/doubleComma ~/.local/bin/,,
+nix profile install path:.
 ```
 
-Make sure `~/.local/bin` is on your `PATH`.
+The Nix package installs the executable as `,,`. A direct Cargo build produces
+`target/release/double_comma`, because Cargo binary target names must be valid
+Rust crate identifiers.
 
 ## Python with uv
 

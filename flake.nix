@@ -26,6 +26,9 @@
             version = "0.1.0";
             src = self;
             cargoLock.lockFile = ./Cargo.lock;
+            postInstall = ''
+              mv "$out/bin/double_comma" "$out/bin/,,"
+            '';
           };
         }
       );
@@ -35,7 +38,7 @@
         {
           default = {
             type = "app";
-            program = "${self.packages.${system}.default}/bin/doubleComma";
+            program = "${self.packages.${system}.default}/bin/,,";
             meta.description = "Run doubleComma";
           };
         }

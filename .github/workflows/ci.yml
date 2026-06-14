@@ -48,8 +48,12 @@ jobs:
       - name: Check unsafe usage
         if: matrix.os == 'ubuntu-latest'
         run: |
-          matches="$(grep -RIn --include='*.rs' 'unsafe' src || true)"
-          expected='src/main.rs:1:#![forbid(unsafe_code)]'
+          matches="$(grep -RIn --include='*.rs' 'unsafe' src | sort || true)"
+          expected="$(cat <<'EOF'
+          src/lib.rs:1:#![forbid(unsafe_code)]
+          src/main.rs:1:#![forbid(unsafe_code)]
+          EOF
+          )"
           printf '%s\n' "$matches"
           test "$matches" = "$expected"
 
