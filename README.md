@@ -21,6 +21,10 @@ nix build
 - `src/lib.rs` contains project detection, manifest parsing, command planning, execution, and unit tests.
 - `src/main.rs` is only the CLI entrypoint.
 
+## Learning Rust
+
+If you are new to Rust, see [docs/rust-beginner-guide.zh.md](docs/rust-beginner-guide.zh.md).
+
 ## Install
 
 ```sh
