@@ -1,7 +1,7 @@
 #![forbid(unsafe_code)]
 
 use std::env;
-use std::ffi::OsString;
+use std::ffi::{OsStr, OsString};
 use std::fmt;
 use std::fs;
 use std::io::{self, Write};
@@ -266,7 +266,7 @@ fn uv_run_args_plan(args: &[OsString]) -> CommandPlan {
     command_plan(&["uv", "run"], args)
 }
 
-fn resolve_existing_target_path(current_dir: &Path, target: &str) -> Option<PathBuf> {
+fn resolve_existing_target_os_path(current_dir: &Path, target: &OsStr) -> Option<PathBuf> {
     let target_path = Path::new(target);
     let absolute = if target_path.is_absolute() {
         target_path.to_path_buf()
@@ -275,6 +275,29 @@ fn resolve_existing_target_path(current_dir: &Path, target: &str) -> Option<Path
     };
 
     absolute.canonicalize().ok()
+}
+
+fn resolve_existing_target_path(current_dir: &Path, target: &str) -> Option<PathBuf> {
+    resolve_existing_target_os_path(current_dir, OsStr::new(target))
+}
+
+fn project_detection_start(current_dir: &Path, command: &str, args: &[OsString]) -> PathBuf {
+    let target = match command {
+        "detect" | "root" => args.get(2),
+        "explain" => args.get(2),
+        _ => args.get(1),
+    };
+
+    target
+        .and_then(|target| resolve_existing_target_os_path(current_dir, target))
+        .map(|path| {
+            if path.is_file() {
+                path.parent().unwrap_or(&path).to_path_buf()
+            } else {
+                path
+            }
+        })
+        .unwrap_or_else(|| current_dir.to_path_buf())
 }
 
 fn has_local_node_bin(project: &Project, name: &str) -> bool {
@@ -469,8 +492,9 @@ pub fn run_cli(args: Vec<OsString>) -> Result<i32, CliError> {
     }
 
     let current_dir = env::current_dir().map_err(CliError::CurrentDir)?;
-    let project = detect_project(current_dir.clone())
-        .ok_or_else(|| CliError::NoProjectRoot(current_dir.clone()))?;
+    let detection_start = project_detection_start(&current_dir, &command, &args);
+    let project = detect_project(detection_start.clone())
+        .ok_or_else(|| CliError::NoProjectRoot(detection_start.clone()))?;
 
     match command.as_ref() {
         "root" => {
@@ -565,6 +589,48 @@ mod tests {
         let root = temp_root(name);
         fs::write(root.join("pyproject.toml"), pyproject).unwrap();
         project_at(root, Backend::Uv)
+    }
+
+    #[test]
+    fn file_command_detects_project_from_file_location() {
+        let workspace = temp_root("file-project-detection");
+        let current_dir = workspace.join("tools");
+        let project_root = workspace.join("app");
+        let src_dir = project_root.join("src");
+        fs::create_dir_all(&current_dir).unwrap();
+        fs::create_dir_all(&src_dir).unwrap();
+        fs::write(project_root.join("package.json"), "{}").unwrap();
+        fs::write(src_dir.join("index.js"), "console.log('ok');").unwrap();
+
+        let args = os_args(&[",,", "../app/src/index.js"]);
+        let start = project_detection_start(&current_dir, "../app/src/index.js", &args);
+        let project = detect_project(start).unwrap();
+
+        assert_eq!(project.root, project_root.canonicalize().unwrap());
+        assert_eq!(project.backend, Backend::Npm);
+    }
+
+    #[test]
+    fn explain_file_detects_project_from_file_location() {
+        let workspace = temp_root("explain-file-project-detection");
+        let current_dir = workspace.join("tools");
+        let project_root = workspace.join("app");
+        let scripts_dir = project_root.join("scripts");
+        fs::create_dir_all(&current_dir).unwrap();
+        fs::create_dir_all(&scripts_dir).unwrap();
+        fs::write(
+            project_root.join("pyproject.toml"),
+            "[project]\nname = \"demo\"\n",
+        )
+        .unwrap();
+        fs::write(scripts_dir.join("task.py"), "print('ok')").unwrap();
+
+        let args = os_args(&[",,", "explain", "../app/scripts/task.py"]);
+        let start = project_detection_start(&current_dir, "explain", &args);
+        let project = detect_project(start).unwrap();
+
+        assert_eq!(project.root, project_root.canonicalize().unwrap());
+        assert_eq!(project.backend, Backend::Uv);
     }
 
     #[test]

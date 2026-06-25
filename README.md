@@ -3,6 +3,8 @@
 `doubleComma` is a small project-aware command dispatcher. Run `,,` from any
 subdirectory and it walks upward to find the nearest supported project root,
 detects the project type, and dispatches common commands through the right tool.
+When the command target is an existing file, project detection starts from that
+file's directory instead of the current directory.
 
 This MVP supports:
 
